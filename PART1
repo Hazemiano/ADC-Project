@@ -1,0 +1,40 @@
+%part(1)
+NumOfSignals = input('enter the number of signals');
+Length = input('enter the length of the largest signal ');
+fprintf(' enter the signals as in arow\n'); 
+Result = zeros(NumOfSignals, Length);
+
+for i = 1: NumOfSignals
+    Result(i,:)=input("");
+end
+
+NumOfBasisFunctions = rank(Result);
+%%NumOfBasisFunctions=size(Result,1);
+
+
+        
+BasisFunctions = orth(Result');
+BasisFunctions=BasisFunctions';
+
+
+figure;
+for i = 1: NumOfSignals
+    subplot(NumOfSignals,1,i);
+    stem(Result(i,:), 'filled'); 
+    title(['signal ', num2str(i)]);
+end 
+
+figure;
+for i = 1: NumOfBasisFunctions
+    subplot(NumOfBasisFunctions,1,i);
+    stem(BasisFunctions(i,:), 'filled'); 
+    title(['basis function ', num2str(i)]);
+end 
+coeff = Result * BasisFunctions';
+
+coeff = Result * BasisFunctions';
+
+
+
+
+% ENERGY OF EACH SIGNAL
