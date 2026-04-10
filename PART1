@@ -1,4 +1,4 @@
-%part(1)
+clc; clear; close all;
 NumOfSignals = input('enter the number of signals');
 Length = input('enter the length of the largest signal ');
 fprintf(' enter the signals as in arow\n'); 
@@ -37,4 +37,13 @@ coeff = Result * BasisFunctions';
 
 
 
-% ENERGY OF EACH SIGNAL
+% el taqa
+
+taqa = sum(coeff.^2, 2);
+
+fprintf('\nenergY of signal:\n');
+for i = 1:NumOfSignals
+    fprintf('Signal %d energy = %.4f\n', i, taqa(i));
+end
+
+
