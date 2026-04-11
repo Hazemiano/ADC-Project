@@ -46,4 +46,10 @@ for i = 1:NumOfSignals
     fprintf('Signal %d energy = %.4f\n', i, taqa(i));
 end
 
+basis_energy = sum(BasisFunctions.^2, 2);
+
+fprintf('\nenergy ofall basis functionS:\n');
+for i = 1:NumOfBasisFunctions
+    fprintf('Basis %d Energy = %.4f\n', i, basis_energy(i));
+end % should equal to 1 :)
 
