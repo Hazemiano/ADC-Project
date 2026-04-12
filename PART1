@@ -55,3 +55,6 @@ end % should equal to 1 :)
 
 fprintf('\basis functions:\n');
 disp(BasisFunctions);
+A=coeff*BasisFunctions;
+error=Result-A;
+fprintf('error = %.10f\n', error);
