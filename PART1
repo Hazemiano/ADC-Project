@@ -9,12 +9,13 @@ for i = 1: NumOfSignals
 end
 
 NumOfBasisFunctions = rank(Result);
-%%NumOfBasisFunctions=size(Result,1);
+%%%NumOfBasisFunctions=size(Result,1);
 
 
         
 BasisFunctions = orth(Result');
 BasisFunctions=BasisFunctions';
+display(BasisFunctions)
 
 
 figure;
@@ -43,18 +44,23 @@ taqa = sum(coeff.^2, 2);
 
 fprintf('\nenergY of signal:\n');
 for i = 1:NumOfSignals
-    fprintf('Signal %d energy = %.4f\n', i, taqa(i));
+    fprintf('Signal %d energy = %.2f\n', i, taqa(i));
 end
+
 
 basis_energy = sum(BasisFunctions.^2, 2);
 
-fprintf('\nenergy ofall basis functionS:\n');
+fprintf('\nenergy of basis functionS:\n');
 for i = 1:NumOfBasisFunctions
-    fprintf('Basis %d Energy = %.4f\n', i, basis_energy(i));
+    fprintf('Basis %d Energy = %.2f\n', i, basis_energy(i));
 end % should equal to 1 :)
 
 fprintf('\basis functions:\n');
 disp(BasisFunctions);
+
 A=coeff*BasisFunctions;
 error=Result-A;
-fprintf('error = %.10f\n', error);
+fprintf('error = %.1f\n', abs(error));
+
+
+%%%%%%%%% conestelation tezy
