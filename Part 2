@@ -1,0 +1,48 @@
+%%% Unipolar NRZ encoding %%%
+% Parameters
+Nb = 100000;                % Number of bits
+Tb = 1;                 % Bit duration
+fs = 100;               % Sampling frequency
+ts = 1/fs;              % Sampling time
+
+% Generate a random binary sequence
+b = rand(1, Nb) > 0.5;
+
+% Time vector
+t = 0:ts:Nb*Tb-ts;
+
+% Unipolar NRZ signal generation
+UPNRZ = [];
+for i = 1:Nb
+    if b(i) == 1
+        UPNRZ = [UPNRZ ones(1, fs)];
+    else
+        UPNRZ = [UPNRZ zeros(1, fs)];
+    end
+end
+
+
+%%% Manchester encoding %%%
+
+% Parameters
+Nb = 100000;        % Number of bits
+Tb = 1;             % Bit duration
+fs = 100;           % Sampling frequency
+ts = 1/fs;          % Sampling period
+
+
+% Generate a random binary sequence
+b = rand(1, Nb) > 0.5;
+
+% Time vector for plotting
+t = linspace(0, Nb*Tb, Nb*fs);      % Nb*fs is the number of samples
+
+% Manchester signal generation
+Manchester = [];
+for i = 1:Nb
+    if b(i) == 1
+        Manchester = [Manchester ones(1, fs/2) -ones(1, fs/2)];  % It starts 1 and ends -1 with half of the width of the pulse for each one
+    else
+        Manchester = [Manchester -ones(1, fs/2) ones(1, fs/2)];  % It starts -1 and ends 1 with half of the width of the pulse for each one
+    end
+end
