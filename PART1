@@ -96,11 +96,13 @@ S = Result';
 Q = zeros(length, M);
 
 for i = 1:M
-    v = S(:,i);  
+    v = S(:,i);
     for j = 1:i-1
-        v = v - (Q(:,j)' * S(:,i)) * Q(:,j);
+        v = v - (Q(:,j)' * v) * Q(:,j);  
     end
-    Q(:,i) = v / norm(v);   % normalize
+    if norm(v) > 1e-10   % <-- guard against zero vectors (linearly dependent)
+        Q(:,i) = v / norm(v);
+    end
 end
 
 N = Q';   % Transpose of Q
@@ -157,12 +159,6 @@ fprintf('\nEnergY of signal:\n');
 for i = 1:M
     fprintf('Signal %d energy = %.2f\n', i, E(i));
 end
-
-
-
-
-
-
 
 
 
