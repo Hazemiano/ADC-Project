@@ -1,4 +1,3 @@
-# ADC-Project
 %% =====================  PART 1  ==========================
 
 %%% User Input %%%
@@ -148,21 +147,20 @@ BER_man_theory = zeros(1, numel(EbNo_dB));
 
 % ---- Main simulation loop ----
 for k = 1:numel(EbNo_dB)
-
     EbNo_lin = 10^(EbNo_dB(k) / 10);
 
-    % Noise variance on the correlator output = No/2
+% Noise variance on the correlator output = No/2
     No_uni = Eb_uni / EbNo_lin;
     No_man = Eb_man / EbNo_lin;
 
-    sigma_uni = sqrt(No_uni / 2);
-    sigma_man = sqrt(No_man / 2);
+ sigma_uni = sqrt(No_uni / 2);
+ sigma_man = sqrt(No_man / 2);
 
-    % Correlator outputs: constellation point + Gaussian noise
+ % Correlator outputs: constellation point + Gaussian noise
     x_uni = zeros(1, Nb);
     x_man = zeros(1, Nb);
 
-    for i = 1:Nb
+for i = 1:Nb
         if bits(i) == 1
             x_uni(i) = s11_uni + sigma_uni * randn();
             x_man(i) = s11_man + sigma_man * randn();
@@ -172,7 +170,7 @@ for k = 1:numel(EbNo_dB)
         end
     end
 
-    % Plot received constellation at -10, 0, +10 dB
+ % Plot received constellation at -10, 0, +10 dB
     if ismember(EbNo_dB(k), [-10 0 10])
         figure;
         subplot(1,2,1);
@@ -180,9 +178,8 @@ for k = 1:numel(EbNo_dB)
         xline(threshold_uni, 'r--', 'Threshold');
         xlabel('\phi_1');
         title(['Unipolar NRZ Received  Eb/No = ' num2str(EbNo_dB(k)) ' dB']);
-        grid on;
-
-        subplot(1,2,2);
+        grid on;   
+    subplot(1,2,2);
         plot(x_man, zeros(1,Nb), '.', 'MarkerSize', 2);
         xline(threshold_man, 'r--', 'Threshold');
         xlabel('\phi_1');
@@ -190,19 +187,19 @@ for k = 1:numel(EbNo_dB)
         grid on;
     end
 
-    % Decision
+% Decision
     decoded_uni = x_uni >= threshold_uni;
     decoded_man = x_man >= threshold_man;
 
-    % Simulated BER
+% Simulated BER
     BER_uni_sim(k) = sum(decoded_uni ~= bits) / Nb;
     BER_man_sim(k) = sum(decoded_man ~= bits) / Nb;
 
-    % Unipolar NRZ:  s11=1, s21=0  ->  Pe = (1/2)*erfc( sqrt(Eb/No / 2) )
+% Unipolar NRZ:  s11=1, s21=0  ->  Pe = (1/2)*erfc( sqrt(Eb/No / 2) )
     % Manchester:    s11=1, s21=-1 ->  Pe = (1/2)*erfc( sqrt(Eb/No) )
 
-    BER_uni_theory(k) = 0.5 * erfc(sqrt(EbNo_lin / 2));
-    BER_man_theory(k) = 0.5 * erfc(sqrt(EbNo_lin));
+BER_uni_theory(k) = 0.5 * erfc(sqrt(EbNo_lin / 2));
+ BER_man_theory(k) = 0.5 * erfc(sqrt(EbNo_lin));
 end
 
 % ---- BER plot ----
