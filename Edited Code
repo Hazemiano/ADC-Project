@@ -1,0 +1,167 @@
+M = input('enter the number of signals:');
+Length = input('enter the length of the largest signal: ');
+fprintf('Enter the signals as in arow\n'); 
+Result = zeros(M, Length);
+t = 0:Length-1; 
+
+for i = 1: M
+    Result(i,:)=input("");
+end
+
+NumOfN = rank(Result);
+
+%%% Gram–Schmidt method %%% 
+
+S = Result';
+[length, M] = size(S);
+Q = zeros(length, M);
+
+for i = 1:M
+    v = S(:,i);
+    for j = 1:i-1
+        v = v - (Q(:,j)' * v) * Q(:,j);
+    end
+    if norm(v) > 1e-10   % <-- guard against zero vectors (linearly dependent)
+        Q(:,i) = v / norm(v);
+    end
+end
+nonzero = any(Q, 1);
+Q = Q(:, nonzero);
+N = Q';   % Transpose of Q
+display(N) 
+
+%%% Plot the M input signals %%%
+figure;
+for i = 1: M
+    subplot(M,1,i);
+    stem(Result(i,:), 'filled'); 
+    title(['signal ', num2str(i)]);
+end 
+
+
+%%% plot the N basis functions %%%
+figure;
+for i = 1: NumOfN
+    subplot(NumOfN,1,i);
+    stairs([t t(end)+1], [N(i,:) N(i,end)], 'LineWidth', 2);
+    title(['basis function ', num2str(i)]);
+end 
+
+
+%%% Plot the constellation diagram of the signals %%%
+coeffs = Result * N';   % Project signals onto basis functions
+%In Case of 2D plot
+if NumOfN <= 2
+ figure;
+ plot(coeffs(:,1), coeffs(:,2), 'X', 'MarkerSize', 10, 'LineWidth', 2);
+ grid on;
+ xlabel('\phi_1');
+ ylabel('\phi_2');
+ title('Constellation Diagram (2D)');
+
+%In Case of 3D plot
+else
+ figure;
+ plot3(coeffs(:,1), coeffs(:,2), coeffs(:,3), 'X', 'MarkerSize', 10, 'LineWidth', 2);
+ grid on;
+ hold on;
+ xlabel('\phi_1');
+ ylabel('\phi_2');
+ zlabel('\phi_3');
+ title('3D Constellation Diagram');
+ view(3);
+ hold off;
+end 
+
+%%% Calculate the energy of each symbols using the constellation diagram %%%
+
+E = sum(coeffs.^2, 2);
+
+fprintf('\nEnergY of signal:\n');
+for i = 1:M
+    fprintf('Signal %d energy = %.2f\n', i, E(i));
+end
+%%% Unipolar NRZ encoding %%%
+% Parameters
+Nb = 100000;     % Number of bits
+Tb = 1;
+fs = 100;
+ts = 1/fs;
+
+% Generate ONE random bitstream
+b = rand(1, Nb) > 0.5;
+
+UPNRZ = repelem(b, fs);
+
+t = 0:ts:Nb*Tb-ts;
+
+figure;
+plot(t, UPNRZ);
+axis([0 10 -0.5 1.5]);   % Show only first 10 bits (important!)
+title('Unipolar NRZ');
+xlabel('Time (s)');
+ylabel('Amplitude');
+grid on;
+
+% manchester
+Manchester = zeros(1, Nb*fs);
+
+for i = 1:Nb
+    idx = (i-1)*fs + 1 : i*fs;
+
+    if b(i) == 1
+        Manchester(idx) = [ones(1, fs/2) -ones(1, fs/2)];
+    else
+        Manchester(idx) = [-ones(1, fs/2) ones(1, fs/2)];
+    end
+end
+
+figure;
+plot(t, Manchester);
+axis([0 10 -1.5 1.5]);   % Show first 10 bits only
+title('Manchester Code');
+xlabel('Time (s)');
+ylabel('Amplitude');
+grid on;
+   %
+
+SNR = [-10:2:10]; %in Db
+snr = 10.^(0.1*SNR);
+
+%for I = 1:length(snr)
+   % noise = 1 / sqrt(2) (randn(1, 10000) + 1i * randn(1, 10000));
+    %u =Manchester+noise .* snr(I);
+%end
+SPOWER=1;
+for k = 1:numel(SNR)
+
+    N0=SPOWER/snr(k);
+    sigma=sqrt(N0/2);
+    noise=sigma/sqrt(2)*(randn(size(Manchester))+1i*randn(size(Manchester)));
+    Part2Result= Manchester+noise;
+
+    figure;
+    scatter(real(Part2Result),imag(Part2Result), 10,'filled');
+    grid on;
+    axis equal;
+    xlabel('In-phase');
+    ylabel('Quadrature');
+    title(['manchester at snr=',num2str(SNR(k)),'dB']);
+end
+SPOWER=1;
+
+for k = 1:numel(SNR)
+
+    N0=SPOWER/snr(k);
+    sigma=sqrt(N0/2);
+    noise=sigma/sqrt(2)*(randn(size(UPNRZ))+1i*randn(size(UPNRZ)));
+    Part3Result= UPNRZ+noise;
+
+    figure;
+    scatter(real(Part3Result), imag(Part3Result), 10,'filled');
+    grid on;
+    axis equal;
+    xlabel('In-phase');
+    ylabel('Quadrature');
+    title(['upnrz at snr=',num2str(SNR(k)),'dB']);
+end
