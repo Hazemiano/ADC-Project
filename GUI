@@ -1,0 +1,332 @@
+function ProjectGUI()
+close all;
+
+% Main window
+fig = uifigure('Name', 'ECE352 Project', 'Position', [100 100 1100 700]);
+
+% Inputs
+uilabel(fig, 'Text', 'M (signals):', 'Position', [10 650 100 22]);
+MField = uieditfield(fig, 'numeric', 'Value', 3, 'Position', [110 650 80 22]);
+
+uilabel(fig, 'Text', 'Signal Length:', 'Position', [10 620 100 22]);
+LenField = uieditfield(fig, 'numeric', 'Value', 4, 'Position', [110 620 80 22]);
+
+uilabel(fig, 'Text', 'Num of Bits:', 'Position', [10 590 100 22]);
+BitsField = uieditfield(fig, 'numeric', 'Value', 100000, 'Position', [110 590 80 22]);
+
+uilabel(fig, 'Text', 'Line Code:', 'Position', [10 560 100 22]);
+Tybe = uidropdown(fig, 'Items', {'Unipolar NRZ', 'Manchester', 'Both'}, ...
+    'Position', [110 560 100 22]);
+
+% Buttons
+uibutton(fig, 'Text', 'Run Gram-Schmidt', 'Position', [10 510 200 30], ...
+    'ButtonPushedFcn', @(btn,event) runGramSchmidt());
+
+uibutton(fig, 'Text', 'Plot Constellation', 'Position', [10 470 200 30], ...
+    'ButtonPushedFcn', @(btn,event) plotConstellation());
+
+uibutton(fig, 'Text', 'Run BER', 'Position', [10 430 200 30], ...
+    'ButtonPushedFcn', @(btn,event) BER());
+
+uibutton(fig, 'Text', 'Clear All', 'Position', [10 390 200 30], ...
+    'BackgroundColor', [1 0.4 0.4], ...
+    'ButtonPushedFcn', @(btn,event) clearAll());
+
+% Axes
+ax1 = uiaxes(fig, 'Position', [220 370 400 300]);
+title(ax1, 'Input Signals');
+
+ax2 = uiaxes(fig, 'Position', [630 370 440 300]);
+title(ax2, 'Basis Functions');
+
+ax3 = uiaxes(fig, 'Position', [220 20 400 320]);
+title(ax3, 'Constellation Diagram');
+
+ax4 = uiaxes(fig, 'Position', [630 20 440 320]);
+title(ax4, 'BER vs Eb/No');
+
+% shared variables to pass between buttons
+shared.Result = [];
+shared.phi = [];
+shared.coeffs = [];
+shared.N = 0;
+
+%%% Button 1 - Run Gram Schmidt %%%
+    function runGramSchmidt()
+        M = MField.Value;
+        Length = LenField.Value;
+        Result = zeros(M, Length);
+        t = 0:Length-1;
+
+        % get signals from user
+        fprintf('Enter the signals as a row\n');
+        for i = 1:M
+        Result(i,:) = input('');
+        end
+
+        %%% Gram-Schmidt method %%%
+        S = Result';
+        [len, M] = size(S);
+        Q = zeros(len, M);
+        for i = 1:M
+            v = S(:,i);
+            for j = 1:i-1
+                v = v - (Q(:,j)' * v) * Q(:,j);
+            end
+            v_norm = sqrt(sum(v.^2));  
+            if v_norm > 1e-10
+                Q(:,i) = v / v_norm;
+            end
+        end
+
+        % remove zero columns instead of rank
+        Q = Q(:, any(Q,1));
+        N = Q';
+        Na = size(N, 1);
+        coeffs = Result * N';
+
+        % save to shared
+        shared.Result = Result;
+        shared.phi = N;
+        shared.coeffs = coeffs;
+        shared.N = Na;
+
+        %%% Plot the M input signals %%%
+        cla(ax1);
+        hold(ax1, 'on');
+        for i = 1:M
+            t_step = zeros(1, 2*Length);
+            y_step = zeros(1, 2*Length);
+            for k = 1:Length
+                t_step(2*k-1) = t(k);
+                t_step(2*k) = t(k)+1-1e-10;
+                y_step(2*k-1) = Result(i,k);
+                y_step(2*k) = Result(i,k);
+            end
+            plot(ax1, t_step, y_step, 'LineWidth', 2, ...
+                'DisplayName', ['s', num2str(i), '(t)']);
+        end
+        hold(ax1, 'off');
+        legend(ax1);
+        title(ax1, 'Input Signals');
+        xlabel(ax1, 'Time');
+        ylabel(ax1, 'Amplitude');
+        grid(ax1, 'on');
+
+        %%% Plot the N basis functions %%%
+        cla(ax2);
+        hold(ax2, 'on');
+        for i = 1:Na
+            t_step = zeros(1, 2*Length);
+            y_step = zeros(1, 2*Length);
+            for k = 1:Length
+                t_step(2*k-1) = t(k);
+                t_step(2*k) = t(k)+1-1e-10;
+                y_step(2*k-1) = N(i,k);
+                y_step(2*k) = N(i,k);
+            end
+            plot(ax2, t_step, y_step, 'LineWidth', 2, ...
+                'DisplayName', ['\phi', num2str(i)]);
+        end
+        hold(ax2, 'off');
+        legend(ax2);
+        title(ax2, 'Basis Functions');
+        xlabel(ax2, 'Time');
+        ylabel(ax2, 'Amplitude');
+        grid(ax2, 'on');
+
+        %%% Calculate energy %%%
+        E = sum(coeffs.^2, 2);
+        fprintf('\nEnergy of each signal:\n');
+        for i = 1:M
+            fprintf('Signal %d energy = %.2f\n', i, E(i));
+        end
+    end
+
+%%% Button 2 - Plot Constellation (no noise) %%%
+    function plotConstellation()
+        if isempty(shared.Result)
+            uialert(fig, 'Run Gram-Schmidt first!', 'Error');
+            return;
+        end
+        coeffs = shared.coeffs;
+        Na = shared.N;
+
+        cla(ax3);
+        if Na == 1
+            plot(ax3, coeffs(:,1), zeros(size(coeffs,1),1), ...
+                'X', 'MarkerSize', 10, 'LineWidth', 2);
+            grid(ax3, 'on');
+            xlabel(ax3, '\phi_1');
+            ylabel(ax3, '');
+            title(ax3, 'Constellation Diagram (1D)');
+        elseif Na <= 2
+            plot(ax3, coeffs(:,1), coeffs(:,2), 'X', 'MarkerSize', 10, 'LineWidth', 2);
+            grid(ax3, 'on');
+            xlabel(ax3, '\phi_1');
+            ylabel(ax3, '\phi_2');
+            title(ax3, 'Constellation Diagram (2D)');
+        else
+            plot3(ax3, coeffs(:,1), coeffs(:,2), coeffs(:,3), 'X', 'MarkerSize', 10, 'LineWidth', 2);
+            grid(ax3, 'on');
+            xlabel(ax3, '\phi_1');
+            ylabel(ax3, '\phi_2');
+            zlabel(ax3, '\phi_3');
+            title(ax3, '3D Constellation Diagram');
+            view(ax3, 3);
+        end
+    end
+
+%%% Button 3 - Run BER %%%
+    function BER()
+        Nb = BitsField.Value;
+        lineType = Tybe.Value;
+        fs = 100;
+
+        % generate random bits
+        b = rand(1, Nb) > 0.5;
+
+        UNRZ = 0;
+        Manc = 0;
+        if strcmp(lineType, 'Unipolar NRZ')
+           UNRZ = 1;
+        elseif strcmp(lineType, 'Manchester')
+           Manc = 1;
+        else
+           UNRZ = 1;
+           Manc = 1;
+        end
+
+        %%% Build Unipolar NRZ %%%
+        UPNRZ = zeros(1, Nb*fs);
+        for i = 1:Nb
+            idx = (i-1)*fs+1 : i*fs;
+            UPNRZ(idx) = b(i);
+        end
+
+        %%% Build Manchester %%%
+        Manchester = zeros(1, Nb*fs);
+        for i = 1:Nb
+            idx = (i-1)*fs+1 : i*fs;
+            if b(i) == 1
+                Manchester(idx) = [ones(1, fs/2) -ones(1, fs/2)];
+            else
+                Manchester(idx) = [-ones(1, fs/2) ones(1, fs/2)];
+            end
+        end
+
+        SNR_dB = -10:2:10;
+        snr    = 10.^(SNR_dB/10);
+
+        BER_UPNRZ = zeros(1, numel(SNR_dB));
+        BER_Manc  = zeros(1, numel(SNR_dB));
+        c1_UNRZ   = zeros(1, Nb);
+        c1_Manc   = zeros(1, Nb);
+        c2_Manc   = zeros(1, Nb);
+
+        for k = 1:numel(SNR_dB)
+            N0    = 1 / snr(k);
+            sigma = sqrt(N0 * fs / 2);
+
+            if UNRZ
+                noise = sigma * randn(size(UPNRZ));
+                received = UPNRZ + noise;
+                decoded  = zeros(1, Nb);
+                for i = 1:Nb
+                    idx = (i-1)*fs+1 : i*fs;
+                    if mean(received(idx)) >= 0.5
+                        decoded(i) = 1;
+                    end
+                end
+                BER_UPNRZ(k) = sum(decoded ~= b) / Nb;
+                if k == numel(SNR_dB)
+                    for i = 1:Nb
+                        idx = (i-1)*fs+1 : i*fs;
+                        c1_UNRZ(i) = mean(received(idx));
+                    end
+                end
+            end
+
+            if Manc
+                noise = sigma * randn(size(Manchester));
+                received = Manchester + noise;
+                decoded  = zeros(1, Nb);
+                for i = 1:Nb
+                    idx = (i-1)*fs+1 : i*fs;
+                    seg = received(idx);
+                    r = mean(seg(1:fs/2)) - mean(seg(fs/2+1:end));
+                    if r >= 0
+                        decoded(i) = 1;
+                    end
+                end
+                BER_Manc(k) = sum(decoded ~= b) / Nb;
+                if k == numel(SNR_dB)
+                    for i = 1:Nb
+                        idx = (i-1)*fs+1 : i*fs;
+                        seg = received(idx);
+                        c1_Manc(i) = mean(seg(1:fs/2));
+                        c2_Manc(i) = mean(seg(fs/2+1:end));
+                    end
+                end
+            end
+        end
+
+        %%% Theoretical BER %%%
+        BER_UPNRZ_theory = qfunc(sqrt(snr/2));
+        BER_Manc_theory  = qfunc(sqrt(2*snr));
+
+        %%% Plot BER %%%
+        cla(ax4);
+        hold(ax4, 'on');
+        if UNRZ
+            semilogy(ax4, SNR_dB, BER_UPNRZ, 'b-o', ...
+                'DisplayName', 'Unipolar NRZ (Simulated)');
+            semilogy(ax4, SNR_dB, BER_UPNRZ_theory, 'b--', ...
+                'DisplayName', 'Unipolar NRZ (Theoretical)');
+        end
+        if Manc
+            semilogy(ax4, SNR_dB, BER_Manc, 'r-o', ...
+                'DisplayName', 'Manchester (Simulated)');
+            semilogy(ax4, SNR_dB, BER_Manc_theory, 'r--', ...
+                'DisplayName', 'Manchester (Theoretical)');
+        end
+        hold(ax4, 'off');
+        legend(ax4);
+        title(ax4, 'BER vs Eb/No');
+        xlabel(ax4, 'Eb/No (dB)');
+        ylabel(ax4, 'BER');
+        grid(ax4, 'on');
+
+        %%% Plot constellation with noise %%%
+        cla(ax3);
+        hold(ax3, 'on');
+        if UNRZ
+            plot(ax3, c1_UNRZ, zeros(1,Nb), '.', 'MarkerSize', 3, ...
+                'DisplayName', 'Unipolar NRZ');
+        end
+        if Manc
+            plot(ax3, c1_Manc, c2_Manc, '.', 'MarkerSize', 3, ...
+                'DisplayName', 'Manchester');
+        end
+        hold(ax3, 'off');
+        legend(ax3);
+        title(ax3, 'Constellation with Noise');
+        xlabel(ax3, '\phi_1');
+        ylabel(ax3, '\phi_2');
+        grid(ax3, 'on');
+    end
+
+%%% Button 4 - Clear All %%%
+    function clearAll()
+        cla(ax1); cla(ax2); cla(ax3); cla(ax4);
+        title(ax1, 'Input Signals');
+        title(ax2, 'Basis Functions');
+        title(ax3, 'Constellation Diagram');
+        title(ax4, 'BER vs Eb/No');
+        shared.Result = [];
+        shared.phi      = [];
+        shared.coeffs = [];
+        shared.N = 0;
+    end
+
+end
