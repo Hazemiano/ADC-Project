@@ -1,0 +1,267 @@
+mode = input('Enter input mode (1 = row vectors, 2 = expressions): ');
+
+if mode == 1
+    M      = input('Enter the number of signals: ');
+    Length = input('Enter the length of the largest signal: ');
+    Result = zeros(M, Length);
+    t      = 0:Length-1;
+    dt     = 1;
+    for i = 1:M
+        Result(i,:) = input('');
+    end
+else
+    M         = input('Enter the number of signals: ');
+    fs        = input('Enter sampling frequency (e.g. 1000): ');
+    signals   = cell(1, M);
+    durations = zeros(1, M);
+    for i = 1:M
+        durations(i) = input(sprintf('Enter duration of s%d (seconds): ', i));
+        expr         = input(sprintf('Enter expression of s%d(t): ', i), 's');
+        t            = 0:1/fs:durations(i)-1/fs;
+        signals{i}   = eval(expr);
+    end
+    maxLen = max(cellfun(@numel, signals));
+    Result = zeros(M, maxLen);
+    for i = 1:M
+        Result(i, 1:numel(signals{i})) = signals{i};
+    end
+    Length = maxLen;
+    dt     = 1/fs;
+    t      = (0:maxLen-1) * dt;
+end
+
+%%% Gram-Schmidt %%%
+S = Result';
+Q = zeros(size(S));
+for i = 1:M
+    v = S(:,i);
+    for j = 1:i-1
+        v = v - sum(Q(:,j).*v)*dt * Q(:,j);
+    end
+    vn = sqrt(sum(v.^2)*dt);
+    if vn > 1e-10
+        Q(:,i) = v / vn;
+    end
+end
+Q = Q(:, any(Q,1));
+N = Q';
+N_phi = size(N,1);
+
+%%% Coefficients & Energy %%%
+coeffs = (Result * N') * dt;
+E = sum(coeffs.^2, 2);
+fprintf('\nEnergy of each signal:\n');
+for i = 1:M
+    fprintf('  Signal %d = %.4f\n', i, E(i));
+end
+
+%%% Plot input signals %%%
+figure;
+for i = 1:M
+    subplot(M,1,i);
+    t1 = zeros(1, 2*Length);
+    y1 = zeros(1, 2*Length);
+    for k = 1:Length
+        t1(2*k-1) = t(k);
+        t1(2*k)   = t(k) + dt - 1e-10;
+        y1(2*k-1) = Result(i,k);
+        y1(2*k)   = Result(i,k);
+    end
+    plot(t1, y1, 'LineWidth', 2);
+    title(['Signal ' num2str(i)]);
+    xlabel('Time');
+    ylabel('Amplitude');
+    grid on;
+end
+
+%%% Plot basis functions %%%
+figure;
+for i = 1:N_phi
+    subplot(N_phi,1,i);
+    t2 = zeros(1, 2*Length);
+    y2 = zeros(1, 2*Length);
+    for k = 1:Length
+        t2(2*k-1) = t(k);
+        t2(2*k)   = t(k) + dt - 1e-10;
+        y2(2*k-1) = N(i,k);
+        y2(2*k)   = N(i,k);
+    end
+    plot(t2, y2, 'LineWidth', 2);
+    title(['\phi_' num2str(i) '(t)']);
+    xlabel('Time');
+    ylabel('Amplitude');
+    grid on;
+end
+
+%%% Constellation diagram %%%
+figure;
+if N_phi == 1
+    plot(coeffs(:,1), zeros(M,1), 'X', 'MarkerSize', 10, 'LineWidth', 2);
+    xlabel('\phi_1');
+    title('Constellation Diagram (1D)');
+elseif N_phi == 2
+    plot(coeffs(:,1), coeffs(:,2), 'X', 'MarkerSize', 10, 'LineWidth', 2);
+    xlabel('\phi_1');
+    ylabel('\phi_2');
+    title('Constellation Diagram (2D)');
+else
+    plot3(coeffs(:,1), coeffs(:,2), coeffs(:,3), 'X', 'MarkerSize', 10, 'LineWidth', 2);
+    xlabel('\phi_1');
+    ylabel('\phi_2');
+    zlabel('\phi_3');
+    title('3D Constellation Diagram');
+    view(3);
+end
+grid on;
+
+%%% Part 2 - BER %%%
+Nb = 100000;
+Tb = 1;
+fs = 100;
+ts = 1/fs;
+
+b = rand(1, Nb) > 0.5;
+
+% build unipolar NRZ
+UPNRZ = zeros(1, Nb*fs);
+for i = 1:Nb
+    UPNRZ((i-1)*fs+1 : i*fs) = b(i);
+end
+
+% build manchester
+Manchester = zeros(1, Nb*fs);
+for i = 1:Nb
+    idx = (i-1)*fs+1 : i*fs;
+    if b(i) == 1
+        Manchester(idx) = [ones(1,fs/2) -ones(1,fs/2)];
+    else
+        Manchester(idx) = [-ones(1,fs/2) ones(1,fs/2)];
+    end
+end
+
+% plot waveforms
+t = 0:ts:Nb*Tb-ts;
+figure;
+subplot(2,1,1);
+plot(t, UPNRZ);
+axis([0 10 -0.5 1.5]);
+title('Unipolar NRZ');
+xlabel('Time (s)');
+ylabel('Amplitude');
+grid on;
+
+subplot(2,1,2);
+plot(t, Manchester);
+axis([0 10 -1.5 1.5]);
+title('Manchester Code');
+xlabel('Time (s)');
+ylabel('Amplitude');
+grid on;
+
+% basis functions
+phi1_NRZ = ones(1,fs) / sqrt(Tb);
+phi2_NRZ = [ones(1,fs/2) -ones(1,fs/2)] / sqrt(Tb);
+phi1_MAN = [ones(1,fs/2) -ones(1,fs/2)] / sqrt(Tb);
+phi2_MAN = ones(1,fs) / sqrt(Tb);
+
+% Eb for each scheme
+Eb_NRZ = 1 * Tb;
+Eb_MAN = 1 * Tb;
+
+SNR_dB = -10:2:10;
+snr = 10.^(SNR_dB/10);
+
+BER_UPNRZ = zeros(1, numel(SNR_dB));
+BER_Manc  = zeros(1, numel(SNR_dB));
+
+x1_NRZ = zeros(1, Nb);
+x2_NRZ = zeros(1, Nb);
+x1_MAN = zeros(1, Nb);
+x2_MAN = zeros(1, Nb);
+
+for k = 1:numel(SNR_dB)
+
+    % noise std for each scheme
+    No_NRZ    = Eb_NRZ / snr(k);
+    sigma_NRZ = sqrt(No_NRZ * fs / 2);
+
+    No_MAN    = Eb_MAN / snr(k);
+    sigma_MAN = sqrt(No_MAN * fs / 2);
+
+    % unipolar NRZ
+    received = UPNRZ + sigma_NRZ * randn(size(UPNRZ));
+    decoded  = zeros(1, Nb);
+    for i = 1:Nb
+        idx = (i-1)*fs+1 : i*fs;
+        r = sum(received(idx) .* phi1_NRZ) * ts;
+        if r >= sqrt(Tb)/2
+            decoded(i) = 1;
+        end
+        if k == numel(SNR_dB)
+            x1_NRZ(i) = sum(received(idx) .* phi1_NRZ) * ts;
+            x2_NRZ(i) = sum(received(idx) .* phi2_NRZ) * ts;
+        end
+    end
+    BER_UPNRZ(k) = sum(decoded ~= b) / Nb;
+
+    % manchester
+    received = Manchester + sigma_MAN * randn(size(Manchester));
+    decoded  = zeros(1, Nb);
+    for i = 1:Nb
+        idx = (i-1)*fs+1 : i*fs;
+        r = sum(received(idx) .* phi1_MAN) * ts;
+        if r >= 0
+            decoded(i) = 1;
+        end
+        if k == numel(SNR_dB)
+            x1_MAN(i) = sum(received(idx) .* phi1_MAN) * ts;
+            x2_MAN(i) = sum(received(idx) .* phi2_MAN) * ts;
+        end
+    end
+    BER_Manc(k) = sum(decoded ~= b) / Nb;
+
+end
+
+% theoretical BER
+BER_UPNRZ_theory = 0.5 * erfc(sqrt(snr/4));
+BER_Manc_theory  = 0.5 * erfc(sqrt(snr));
+
+% plot BER
+figure;
+semilogy(SNR_dB, BER_UPNRZ,        'b-o', 'DisplayName', 'Unipolar NRZ (Simulated)');
+hold on;
+semilogy(SNR_dB, BER_UPNRZ_theory, 'b--', 'DisplayName', 'Unipolar NRZ (Theoretical)');
+semilogy(SNR_dB, BER_Manc,         'r-o', 'DisplayName', 'Manchester (Simulated)');
+semilogy(SNR_dB, BER_Manc_theory,  'r--', 'DisplayName', 'Manchester (Theoretical)');
+hold off;
+legend('Location', 'southwest');
+title('BER vs Eb/No');
+xlabel('Eb/No (dB)');
+ylabel('BER');
+grid on;
+
+% constellation with noise at Eb/No = 10 dB
+figure;
+subplot(1,2,1);
+plot(x1_NRZ(b==1), x2_NRZ(b==1), '.b', 'MarkerSize', 3, 'DisplayName', 'bit=1');
+hold on;
+plot(x1_NRZ(b==0), x2_NRZ(b==0), '.r', 'MarkerSize', 3, 'DisplayName', 'bit=0');
+hold off;
+legend;
+grid on;
+axis equal;
+xlabel('\phi_1');
+ylabel('\phi_2');
+title('Unipolar NRZ Constellation (with noise)');
+
+subplot(1,2,2);
+plot(x1_MAN(b==1), x2_MAN(b==1), '.b', 'MarkerSize', 3, 'DisplayName', 'bit=1');
+hold on;
+plot(x1_MAN(b==0), x2_MAN(b==0), '.r', 'MarkerSize', 3, 'DisplayName', 'bit=0');
+hold off;
+legend;
+grid on;
+axis equal;
+xlabel('\phi_1');
+ylabel('\phi_2');
+title('Manchester Constellation (with noise)');
