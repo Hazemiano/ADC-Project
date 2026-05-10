@@ -201,109 +201,112 @@ end
 
 %%% Unipolar NRZ encoding %%%
 
-% Parameters
-Nb = 100000;     % Number of bits
+%%% Part 2 - BER %%%
+Nb = 100000;
 Tb = 1;
 fs = 100;
 ts = 1/fs;
 
-% Generate ONE random bitstream
 b = rand(1, Nb) > 0.5;
 
-% Unipolar NRZ signal
-UPNRZ = repelem(b, fs);
+% build unipolar NRZ
+UPNRZ = zeros(1, Nb*fs);
+for i = 1:Nb
+    UPNRZ((i-1)*fs+1 : i*fs) = b(i);
+end
 
-% Time vector
+% build manchester
+Manchester = zeros(1, Nb*fs);
+for i = 1:Nb
+    idx = (i-1)*fs+1 : i*fs;
+    if b(i) == 1
+        Manchester(idx) = [ones(1,fs/2) -ones(1,fs/2)];
+    else
+        Manchester(idx) = [-ones(1,fs/2) ones(1,fs/2)];
+    end
+end
+
+% plot waveforms
 t = 0:ts:Nb*Tb-ts;
-
 figure;
+subplot(2,1,1);
 plot(t, UPNRZ);
-axis([0 10 -0.5 1.5]);   % Show only first 10 bits
+axis([0 10 -0.5 1.5]);
 title('Unipolar NRZ');
 xlabel('Time (s)');
 ylabel('Amplitude');
 grid on;
 
-%% Manchester Encoding
-Manchester = zeros(1, Nb*fs);
-
-for i = 1:Nb
-
-    idx = (i-1)*fs + 1 : i*fs;
-
-    if b(i) == 1
-        Manchester(idx) = [ones(1, fs/2) -ones(1, fs/2)];
-    else
-        Manchester(idx) = [-ones(1, fs/2) ones(1, fs/2)];
-    end
-end
-
-figure;
+subplot(2,1,2);
 plot(t, Manchester);
-axis([0 10 -1.5 1.5]);   % Show first 10 bits only
+axis([0 10 -1.5 1.5]);
 title('Manchester Code');
 xlabel('Time (s)');
 ylabel('Amplitude');
 grid on;
 
-%% SNR values
-SPOWER = 1;
+% basis functions
+phi1_NRZ = ones(1,fs) / sqrt(Tb);
+phi2_NRZ = [ones(1,fs/2) -ones(1,fs/2)] / sqrt(Tb);
+phi1_MAN = [ones(1,fs/2) -ones(1,fs/2)] / sqrt(Tb);
+phi2_MAN = ones(1,fs) / sqrt(Tb);
 
-SNR = -10:2:10;     % in dB
-snr = 10.^(0.1*SNR);
+% Eb for each scheme
+Eb_NRZ = 1 * Tb;
+Eb_MAN = 1 * Tb;
 
-%% Manchester with noise
-figure;
+SNR_dB = -10:2:10;
+snr = 10.^(SNR_dB/10);
 
-for k = 1:length(SNR)
+BER_UPNRZ = zeros(1, numel(SNR_dB));
+BER_Manc  = zeros(1, numel(SNR_dB));
 
-    N0 = SPOWER / snr(k);
+x1_NRZ = zeros(1, Nb);
+x2_NRZ = zeros(1, Nb);
+x1_MAN = zeros(1, Nb);
+x2_MAN = zeros(1, Nb);
 
-    sigma = sqrt(N0/2);
+for k = 1:numel(SNR_dB)
 
-    noise = sigma/sqrt(2) * ...
-        (randn(size(Manchester)) + 1i*randn(size(Manchester)));
+    % noise std for each scheme
+    No_NRZ    = Eb_NRZ / snr(k);
+    sigma_NRZ = sqrt(No_NRZ * fs / 2);
 
-    Part2Result = Manchester + noise;
+    No_MAN    = Eb_MAN / snr(k);
+    sigma_MAN = sqrt(No_MAN * fs / 2);
 
-    subplot(3,4,k);
+    % unipolar NRZ
+    received = UPNRZ + sigma_NRZ * randn(size(UPNRZ));
+    decoded  = zeros(1, Nb);
+    for i = 1:Nb
+        idx = (i-1)*fs+1 : i*fs;
+        r = sum(received(idx) .* phi1_NRZ) * ts;
+        if r >= sqrt(Tb)/2
+            decoded(i) = 1;
+        end
+        if k == numel(SNR_dB)
+            x1_NRZ(i) = sum(received(idx) .* phi1_NRZ) * ts;
+            x2_NRZ(i) = sum(received(idx) .* phi2_NRZ) * ts;
+        end
+    end
+    BER_UPNRZ(k) = sum(decoded ~= b) / Nb;
 
-    scatter(real(Part2Result), imag(Part2Result), 10, 'filled');
+    % manchester
+    received = Manchester + sigma_MAN * randn(size(Manchester));
+    decoded  = zeros(1, Nb);
+    for i = 1:Nb
+        idx = (i-1)*fs+1 : i*fs;
+        r = sum(received(idx) .* phi1_MAN) * ts;
+        if r >= 0
+            decoded(i) = 1;
+        end
+        if k == numel(SNR_dB)
+            x1_MAN(i) = sum(received(idx) .* phi1_MAN) * ts;
+            x2_MAN(i) = sum(received(idx) .* phi2_MAN) * ts;
+        end
+    end
+    BER_Manc(k) = sum(decoded ~= b) / Nb;
 
-    grid on;
-    axis equal;
-
-    xlabel('In-phase');
-    ylabel('Quadrature');
-
-    title(['Manchester, SNR = ', num2str(SNR(k)), ' dB']);
-end
-
-%% UPNRZ with noise
-figure;
-
-for k = 1:length(SNR)
-
-    N0 = SPOWER / snr(k);
-
-    sigma = sqrt(N0/2);
-
-    noise = sigma/sqrt(2) * ...
-        (randn(size(UPNRZ)) + 1i*randn(size(UPNRZ)));
-
-    Part3Result = UPNRZ + noise;
-
-    subplot(3,4,k);
-
-    scatter(real(Part3Result), imag(Part3Result), 10, 'filled');
-
-    grid on;
-    axis equal;
-
-    xlabel('In-phase');
-    ylabel('Quadrature');
-
-    title(['UPNRZ, SNR = ', num2str(SNR(k)), ' dB']);
 end
 
 % theoretical BER
@@ -349,4 +352,3 @@ axis equal;
 xlabel('\phi_1');
 ylabel('\phi_2');
 title('Manchester Constellation (with noise)');
-
