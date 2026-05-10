@@ -181,3 +181,94 @@ fprintf('\nEnergy of signal:\n');
 for i = 1:M
     fprintf('Signal %d energy = %.2f\n', i, E(i));
 end
+
+
+%%% Unipolar NRZ encoding %%%
+% Parameters
+Nb = 100000;     % Number of bits
+Tb = 1;
+fs = 100;
+ts = 1/fs;
+
+% Generate ONE random bitstream
+b = rand(1, Nb) > 0.5;
+
+UPNRZ = repelem(b, fs);
+
+t = 0:ts:NbTb-ts;
+
+figure;
+plot(t, UPNRZ);
+axis([0 10 -0.5 1.5]);   % Show only first 10 bits (important!)
+title('Unipolar NRZ');
+xlabel('Time (s)');
+ylabel('Amplitude');
+grid on;
+
+% manchester
+Manchester = zeros(1, Nbfs);
+
+for i = 1:Nb
+    idx = (i-1)fs + 1 : ifs;
+
+    if b(i) == 1
+        Manchester(idx) = [ones(1, fs/2) -ones(1, fs/2)];
+    else
+        Manchester(idx) = [-ones(1, fs/2) ones(1, fs/2)];
+    end
+end
+
+figure;
+plot(t, Manchester);
+axis([0 10 -1.5 1.5]);   % Show first 10 bits only
+title('Manchester Code');
+xlabel('Time (s)');
+ylabel('Amplitude');
+grid on;
+   %
+
+SPOWER = 1;
+
+SNR = [-10:2:10]; %in Db
+snr = 10.^(0.1.SNR);
+
+%for I = 1:length(snr)
+   % noise = 1 / sqrt(2) (randn(1, 10000) + 1i * randn(1, 10000));
+    %u =Manchester+noise .* snr(I);
+%end
+SPOWER=1;
+for k = 1:length(SNR)
+
+    N0=SPOWER/snr(k);
+    sigma=sqrt(N0/2);
+    noise=sigma/sqrt(2)(randn(size(Manchester))+1irandn(size(Manchester)));
+    Part2Result= Manchester+noise;
+
+    figure;
+    scatter(real(Part2Result),imag(Part2Result), 10,'filled');
+    grid on;
+    axis equal;
+    xlabel('In-phase');
+    ylabel('Quadrature');
+    title(['manchester at snr=',num2str(SNR(k)),'dB']);
+end
+SPOWER=1;
+
+for k = 1:length(SNR)
+
+    N0=SPOWER/snr(k);
+    sigma=sqrt(N0/2);
+    noise=sigma/sqrt(2)(randn(size(UPNRZ))+1irandn(size(UPNRZ)));
+    Part3Result= UPNRZ+noise;
+
+    figure;
+    scatter(real(Part3Result), imag(Part3Result), 10,'filled');
+    grid on;
+    axis equal;
+    xlabel('In-phase');
+    ylabel('Quadrature');
+    title(['upnrz at snr=',num2str(SNR(k)),'dB']);
+end
+
+
+
