@@ -1,4 +1,3 @@
-
 clear all;
 M = input('Enter the number of signals: ');
 Length = input('Enter the length of the largest signal: '); 
@@ -31,7 +30,7 @@ for i = 1:M
                 S(i, 1:len_temp) = user_input;
             else
               
-                S(i, :) = user_input(1:Length);
+                S(i,:) = user_input(1:Length);
                 disp('Warning: Input signal was longer than the max length you are selected');
             end
             
@@ -57,18 +56,35 @@ case 3
     S(i,:) =temp;
     
             
-        case 4
-            % Rectangular Pulse
-            rect = floor(Length/4); 
-            rect_wave = zeros(1, Length);
-            rect_wave(abs(t_c) <= rect) = 1;
-            S(i,:) = rect_wave;
-            
-        case 5
-            % Triangular Pulse
-            tri = 1 - abs(t_c) /(Length/4);
-            tri(tri < 0) = 0; 
-            S(i,:) =tri;
+       case 4
+
+        dur = input('Enter pulse duration (samples): ');
+
+         if dur < 1
+             disp('Invalid duration! Using 1.');
+             dur = 1;
+         end
+
+        rect_wave = zeros(1,Length);
+        rect_wave(1:dur) =1;   
+        S(i,:) =rect_wave;
+      case 5
+
+    period = input('nter period');
+
+    
+    temp = zeros(1, Length);
+
+    n=0:period-1;
+
+    half=floor(period/2);
+
+    tri_one_period = zeros(1, period);
+
+    tri_one_period(1:half)=linspace(0, 1, half);
+    tri_one_period(half+1:end)=linspace(1, 0, period-half);
+    temp(1:period)=tri_one_period;
+    S(i,:)=temp;
             
         case 6
             % Sinc
@@ -181,6 +197,7 @@ fprintf('\nEnergy of signal:\n');
 for i = 1:M
     fprintf('Signal %d energy = %.2f\n', i, E(i));
 end
+
 
 %%% Unipolar NRZ encoding %%%
 
