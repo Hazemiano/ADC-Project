@@ -271,4 +271,47 @@ for k = 1:length(SNR)
 end
 
 
+% theoretical BER
+BER_UPNRZ_theory = 0.5 * erfc(sqrt(snr/4));
+BER_Manc_theory  = 0.5 * erfc(sqrt(snr));
+
+% plot BER
+figure;
+semilogy(SNR_dB, BER_UPNRZ,        'b-o', 'DisplayName', 'Unipolar NRZ (Simulated)');
+hold on;
+semilogy(SNR_dB, BER_UPNRZ_theory, 'b--', 'DisplayName', 'Unipolar NRZ (Theoretical)');
+semilogy(SNR_dB, BER_Manc,         'r-o', 'DisplayName', 'Manchester (Simulated)');
+semilogy(SNR_dB, BER_Manc_theory,  'r--', 'DisplayName', 'Manchester (Theoretical)');
+hold off;
+legend('Location', 'southwest');
+title('BER vs Eb/No');
+xlabel('Eb/No (dB)');
+ylabel('BER');
+grid on;
+
+% constellation with noise at Eb/No = 10 dB
+figure;
+subplot(1,2,1);
+plot(x1_NRZ(b==1), x2_NRZ(b==1), '.b', 'MarkerSize', 3, 'DisplayName', 'bit=1');
+hold on;
+plot(x1_NRZ(b==0), x2_NRZ(b==0), '.r', 'MarkerSize', 3, 'DisplayName', 'bit=0');
+hold off;
+legend;
+grid on;
+axis equal;
+xlabel('\phi_1');
+ylabel('\phi_2');
+title('Unipolar NRZ Constellation (with noise)');
+
+subplot(1,2,2);
+plot(x1_MAN(b==1), x2_MAN(b==1), '.b', 'MarkerSize', 3, 'DisplayName', 'bit=1');
+hold on;
+plot(x1_MAN(b==0), x2_MAN(b==0), '.r', 'MarkerSize', 3, 'DisplayName', 'bit=0');
+hold off;
+legend;
+grid on;
+axis equal;
+xlabel('\phi_1');
+ylabel('\phi_2');
+title('Manchester Constellation (with noise)');
 
