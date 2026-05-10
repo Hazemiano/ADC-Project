@@ -182,8 +182,8 @@ for i = 1:M
     fprintf('Signal %d energy = %.2f\n', i, E(i));
 end
 
-
 %%% Unipolar NRZ encoding %%%
+
 % Parameters
 Nb = 100000;     % Number of bits
 Tb = 1;
@@ -193,23 +193,26 @@ ts = 1/fs;
 % Generate ONE random bitstream
 b = rand(1, Nb) > 0.5;
 
+% Unipolar NRZ signal
 UPNRZ = repelem(b, fs);
 
-t = 0:ts:NbTb-ts;
+% Time vector
+t = 0:ts:Nb*Tb-ts;
 
 figure;
 plot(t, UPNRZ);
-axis([0 10 -0.5 1.5]);   % Show only first 10 bits (important!)
+axis([0 10 -0.5 1.5]);   % Show only first 10 bits
 title('Unipolar NRZ');
 xlabel('Time (s)');
 ylabel('Amplitude');
 grid on;
 
-% manchester
-Manchester = zeros(1, Nbfs);
+%% Manchester Encoding
+Manchester = zeros(1, Nb*fs);
 
 for i = 1:Nb
-    idx = (i-1)fs + 1 : ifs;
+
+    idx = (i-1)*fs + 1 : i*fs;
 
     if b(i) == 1
         Manchester(idx) = [ones(1, fs/2) -ones(1, fs/2)];
@@ -225,27 +228,31 @@ title('Manchester Code');
 xlabel('Time (s)');
 ylabel('Amplitude');
 grid on;
-   %
 
+%% SNR values
 SPOWER = 1;
 
-SNR = [-10:2:10]; %in Db
-snr = 10.^(0.1.SNR);
+SNR = -10:2:10;     % in dB
+snr = 10.^(0.1*SNR);
 
-%for I = 1:length(snr)
-   % noise = 1 / sqrt(2) (randn(1, 10000) + 1i * randn(1, 10000));
-    %u =Manchester+noise .* snr(I);
-%end
-SPOWER=1;
+%% Manchester with noise
+figure;
+
 for k = 1:length(SNR)
 
-    N0=SPOWER/snr(k);
-    sigma=sqrt(N0/2);
-    noise=sigma/sqrt(2)(randn(size(Manchester))+1irandn(size(Manchester)));
-    Part2Result= Manchester+noise;
-    subplot(3,4,k);   
+    N0 = SPOWER / snr(k);
+
+    sigma = sqrt(N0/2);
+
+    noise = sigma/sqrt(2) * ...
+        (randn(size(Manchester)) + 1i*randn(size(Manchester)));
+
+    Part2Result = Manchester + noise;
+
+    subplot(3,4,k);
 
     scatter(real(Part2Result), imag(Part2Result), 10, 'filled');
+
     grid on;
     axis equal;
 
@@ -255,26 +262,32 @@ for k = 1:length(SNR)
     title(['Manchester, SNR = ', num2str(SNR(k)), ' dB']);
 end
 
-SPOWER=1;
+%% UPNRZ with noise
+figure;
 
 for k = 1:length(SNR)
 
-    N0=SPOWER/snr(k);
-    sigma=sqrt(N0/2);
-    noise=sigma/sqrt(2)(randn(size(UPNRZ))+1irandn(size(UPNRZ)));
-    Part3Result= UPNRZ+noise;
-    subplot(3,4,k);   
+    N0 = SPOWER / snr(k);
 
-    scatter(real(Part2Result), imag(Part2Result), 10, 'filled');
+    sigma = sqrt(N0/2);
+
+    noise = sigma/sqrt(2) * ...
+        (randn(size(UPNRZ)) + 1i*randn(size(UPNRZ)));
+
+    Part3Result = UPNRZ + noise;
+
+    subplot(3,4,k);
+
+    scatter(real(Part3Result), imag(Part3Result), 10, 'filled');
+
     grid on;
     axis equal;
 
     xlabel('In-phase');
     ylabel('Quadrature');
 
-    title(['Manchester, SNR = ', num2str(SNR(k)), ' dB']);
+    title(['UPNRZ, SNR = ', num2str(SNR(k)), ' dB']);
 end
-
 
 % theoretical BER
 BER_UPNRZ_theory = 0.5 * erfc(sqrt(snr/4));
