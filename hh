@@ -243,15 +243,18 @@ for k = 1:length(SNR)
     sigma=sqrt(N0/2);
     noise=sigma/sqrt(2)(randn(size(Manchester))+1irandn(size(Manchester)));
     Part2Result= Manchester+noise;
+    subplot(3,4,k);   
 
-    figure;
-    scatter(real(Part2Result),imag(Part2Result), 10,'filled');
+    scatter(real(Part2Result), imag(Part2Result), 10, 'filled');
     grid on;
     axis equal;
+
     xlabel('In-phase');
     ylabel('Quadrature');
-    title(['manchester at snr=',num2str(SNR(k)),'dB']);
+
+    title(['Manchester, SNR = ', num2str(SNR(k)), ' dB']);
 end
+
 SPOWER=1;
 
 for k = 1:length(SNR)
@@ -260,14 +263,16 @@ for k = 1:length(SNR)
     sigma=sqrt(N0/2);
     noise=sigma/sqrt(2)(randn(size(UPNRZ))+1irandn(size(UPNRZ)));
     Part3Result= UPNRZ+noise;
+    subplot(3,4,k);   
 
-    figure;
-    scatter(real(Part3Result), imag(Part3Result), 10,'filled');
+    scatter(real(Part2Result), imag(Part2Result), 10, 'filled');
     grid on;
     axis equal;
+
     xlabel('In-phase');
     ylabel('Quadrature');
-    title(['upnrz at snr=',num2str(SNR(k)),'dB']);
+
+    title(['Manchester, SNR = ', num2str(SNR(k)), ' dB']);
 end
 
 
